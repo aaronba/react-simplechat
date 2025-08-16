@@ -1,20 +1,39 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faThumbsUp, faThumbsDown } from '@fortawesome/free-regular-svg-icons';
 import { useMessages } from '../providers/MessagesProvider';
+import { ErrorMessage, LoadingSpinner } from './ErrorComponents';
 import ChatFooter from './ChatFooter';
 
 export default function ChatMain({ feedback, onFeedback, darkMode, ChatFooterProps }) {
-  const { messages } = useMessages();
+  const { messages, loading, error } = useMessages();
+  
   // Helper for icon color
   const iconColor = darkMode ? 'text-white' : 'text-gray-700';
   const iconInactive = darkMode ? 'text-gray-400' : 'text-gray-400';
+  
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full">
       <div className={
         `flex-1 overflow-y-auto px-6 pb-6 pt-2 flex flex-col` +
         (darkMode ? ' bg-gray-900 text-gray-100' : ' bg-white text-gray-900')
       } style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
-        {messages.map((msg, i) => (
+        
+        {/* Error Display */}
+        {error && (
+          <ErrorMessage 
+            error={error} 
+            className="mb-4"
+            onRetry={() => window.location.reload()}
+          />
+        )}
+        
+        {/* Loading Display */}
+        {loading && (
+          <LoadingSpinner message="Loading messages..." />
+        )}
+        
+        {/* Messages */}
+        {!loading && messages.map((msg, i) => (
           <div key={msg.id} className={`flex ${msg.user === 'You' ? 'justify-end' : 'justify-start'} mb-4`}>
             <div className={`flex items-end gap-3 max-w-2xl w-full ${msg.user === 'You' ? 'flex-row-reverse' : ''}`}>
               {/* Avatar */}
