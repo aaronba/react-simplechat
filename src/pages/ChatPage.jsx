@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useConversations } from '../providers/ConversationsProvider';
-import { MessagesProvider } from '../providers/MessagesProvider';
+import { MessagesProvider, useMessages } from '../providers/MessagesProvider';
 import ChatFooter from '../components/ChatFooter';
 import ConversationList from '../components/ConversationList';
 import ChatMain from '../components/ChatMain';
@@ -21,7 +21,8 @@ export default function ChatPage({ darkMode, setDarkMode }) {
 
   useEffect(() => {
     if (conversations.length > 0 && selectedId == null) {
-      setSelectedId(conversations[0].id);
+      const firstId = conversations[0].id;
+      setSelectedId(firstId);
     }
   }, [conversations, selectedId]);
 
@@ -78,17 +79,71 @@ export default function ChatPage({ darkMode, setDarkMode }) {
             </div>
           </div>
           <MessagesProvider selectedId={selectedId}>
-            <div className="flex flex-col flex-1 min-h-0 h-full">
-              <ChatMain
-                feedback={feedback}
-                onFeedback={setFeedback}
-                darkMode={darkMode}
-                ChatFooterProps={{ input, setInput, loading, setLoading, model }}
-              />
-            </div>
+            <ChatPageContent
+              input={input}
+              setInput={setInput}
+              loading={loading}
+              setLoading={setLoading}
+              model={model}
+              feedback={feedback}
+              setFeedback={setFeedback}
+              darkMode={darkMode}
+            />
           </MessagesProvider>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Component that has access to MessagesProvider context
+function ChatPageContent({ 
+  input, 
+  setInput, 
+  loading, 
+  setLoading, 
+  model, 
+  feedback, 
+  setFeedback, 
+  darkMode 
+}) {
+  const { addMessage } = useMessages();
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
+
+    const messageText = input.trim();
+    setInput('');
+    setLoading(true);
+
+    try {
+      console.log('Sending message:', messageText);
+      await addMessage(messageText);
+      console.log('Message sent successfully');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // On error, put the text back
+      setInput(messageText);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 h-full">
+      <ChatMain
+        feedback={feedback}
+        onFeedback={setFeedback}
+        darkMode={darkMode}
+        ChatFooterProps={{ 
+          onSend: handleSend,
+          input, 
+          setInput, 
+          loading, 
+          model 
+        }}
+      />
     </div>
   );
 }

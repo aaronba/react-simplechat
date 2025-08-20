@@ -8,14 +8,15 @@ const groupApi = {
     const token = localStorage.getItem('token');
     
     if (token) {
-      // First, establish session from token
-      await fetch(`https://ettsc-dev-app.azurewebsites.net/getASession`, {
+      // First, establish session using the login endpoint
+      await fetch(`https://ettsc-dev-app.azurewebsites.net/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ access_token: token })
       });
     }
     

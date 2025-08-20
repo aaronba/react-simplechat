@@ -123,7 +123,7 @@ export default function ChatMain({ feedback, onFeedback, darkMode, ChatFooterPro
                       </button>
                     </div>
                   </div>
-                  {msg.text.includes('order') && (
+                  {msg.text && msg.text.includes('order') && (
                     <span className={
                       `inline-block rounded px-2 py-0.5 text-xs ` +
                       (darkMode ? 'text-blue-200 bg-blue-950' : 'text-blue-700 bg-blue-50')

@@ -4,6 +4,7 @@ import { msalInstance } from './authConfig';
 import { AuthProvider } from './providers/AuthProvider';
 import { ConversationsProvider } from './providers/ConversationsProvider';
 import ErrorBoundary from './components/ErrorBoundary';
+import AuthDebugPanel from './components/AuthDebugPanel';
 import { NetworkErrorBanner } from './components/ErrorComponents';
 import { useNetworkStatus } from './hooks/useErrorHandling';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -27,6 +28,7 @@ export default function App() {
           </div>
         </AuthProvider>
       </MsalProvider>
+      {/* <AuthDebugPanel /> */}
     </ErrorBoundary>
   );
 }

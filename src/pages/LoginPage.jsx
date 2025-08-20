@@ -13,12 +13,12 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      await instance.loginPopup(loginRequest);
-      // Redirect will happen automatically via MSAL
+      // Use redirect instead of popup to avoid CORS issues with non-SPA app registrations
+      await instance.loginRedirect(loginRequest);
+      // The page will redirect to Microsoft and then back
     } catch (err) {
       console.error('Login failed:', err);
       setError(err.message || 'Login failed. Please try again.');
-    } finally {
       setLoading(false);
     }
   };

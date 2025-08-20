@@ -1,74 +1,11 @@
 import { useState, useEffect, createContext, useContext } from 'react';
+import { conversationsApi, establishFlaskSession, getConversations } from '../api.js';
 
 const ConversationsContext = createContext();
 
 export function useConversations() {
   return useContext(ConversationsContext);
 }
-
-// Add API calls for conversations
-const conversationsApi = {
-  async fetchConversations() {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      return [];
-    }
-    
-    try {
-      // First establish session
-      const sessionResponse = await fetch(`https://ettsc-dev-app.azurewebsites.net/getASession`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!sessionResponse.ok) {
-        throw new Error(`Session establishment failed: ${sessionResponse.status}`);
-      }
-      
-      const response = await fetch(`https://ettsc-dev-app.azurewebsites.net/api/conversations`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
-    }
-  },
-  
-  async createConversation() {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('No token found');
-    
-    // First establish session
-    await fetch(`https://ettsc-dev-app.azurewebsites.net/getASession`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const response = await fetch(`https://ettsc-dev-app.azurewebsites.net/api/conversations`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-  }
-};
 
 export function ConversationsProvider({ children }) {
   const [conversations, setConversations] = useState([]);
@@ -80,16 +17,16 @@ export function ConversationsProvider({ children }) {
       setLoading(true);
       setError(null);
       try {
-        const data = await conversationsApi.fetchConversations();
-        setConversations(data);
+        // Load conversations from the real backend
+        const data = await getConversations();
+        // Flask returns conversations array or object with conversations array
+        const conversationsList = Array.isArray(data) ? data : (data.conversations || []);
+        setConversations(conversationsList);
       } catch (err) {
-        console.error('Failed to fetch conversations:', err);
+        console.error('Failed to load conversations:', err);
         setError(err.message);
-        // Fallback to demo data when API fails (useful for development)
-        setConversations([
-          { id: 1, summary: 'Demo: Welcome to the chat!' },
-          { id: 2, summary: 'Demo: Q&A about your project' },
-        ]);
+        // Keep empty array if API fails
+        setConversations([]);
       } finally {
         setLoading(false);
       }
@@ -98,12 +35,20 @@ export function ConversationsProvider({ children }) {
     loadConversations();
   }, []);
 
-  // Add a new conversation and return its id
-  const addConversation = async () => {
+  // Add a new conversation by sending first message
+  const addConversation = async (initialMessage = null) => {
     try {
-      const newConversation = await conversationsApi.createConversation();
-      setConversations(prev => [...prev, newConversation]);
-      return newConversation.id;
+      // Flask creates conversations automatically when first message is sent
+      // So we'll return a temporary ID that will be replaced when message is sent
+      const tempConversation = {
+        id: 'temp-' + Date.now(),
+        title: 'New Conversation',
+        last_updated: new Date().toISOString(),
+        isTemporary: true
+      };
+      
+      setConversations(prev => [...prev, tempConversation]);
+      return tempConversation.id;
     } catch (err) {
       console.error('Failed to create conversation:', err);
       setError(err.message);
@@ -111,11 +56,21 @@ export function ConversationsProvider({ children }) {
     }
   };
 
+  // Update a conversation when it gets real data from backend
+  const updateConversation = (conversationId, conversationData) => {
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversationId ? { ...conv, ...conversationData } : conv
+      )
+    );
+  };
+
   return (
     <ConversationsContext.Provider value={{ 
       conversations, 
       setConversations, 
-      addConversation, 
+      addConversation,
+      updateConversation,
       loading, 
       error 
     }}>

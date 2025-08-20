@@ -15,15 +15,36 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Handle redirect response on mount
+  useEffect(() => {
+    const handleRedirectResponse = async () => {
+      try {
+        const response = await instance.handleRedirectPromise();
+        if (response) {
+          console.log('Redirect response received:', response);
+        }
+      } catch (err) {
+        console.error('Error handling redirect response:', err);
+        setError(err.message);
+      }
+    };
+
+    handleRedirectResponse();
+  }, [instance]);
+
   // Check authentication status on mount and when accounts change
   useEffect(() => {
     const checkAuthStatus = async () => {
+      console.log('Checking auth status, inProgress:', inProgress, 'accounts:', accounts?.length);
+      
       if (inProgress !== 'none') {
         return; // Wait for MSAL to finish processing
       }
 
       if (accounts && accounts.length > 0) {
         const account = accounts[0];
+        console.log('Found account:', account.username);
+        
         setUser({
           username: account.username,
           name: account.name,
@@ -36,6 +57,8 @@ export function AuthProvider({ children }) {
             ...loginRequest,
             account: account,
           });
+          
+          console.log('Got access token:', response.accessToken ? 'Yes' : 'No');
           setToken(response.accessToken);
           
           // Store token for API calls
@@ -45,6 +68,7 @@ export function AuthProvider({ children }) {
           setError('Failed to acquire access token');
         }
       } else {
+        console.log('No accounts found');
         setUser(null);
         setToken(null);
         localStorage.removeItem('msal_token');
@@ -61,13 +85,11 @@ export function AuthProvider({ children }) {
     setError(null);
     
     try {
-      await instance.loginPopup(loginRequest);
-      return { success: true };
+      await instance.loginRedirect(loginRequest);
+      // The page will redirect, so we don't need to return anything
     } catch (err) {
       console.error('Login failed:', err);
       setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
       setLoading(false);
     }
   };

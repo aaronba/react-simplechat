@@ -1,5 +1,6 @@
 import { useEffect, useState, createContext, useContext } from 'react';
-import { chatApi } from '../api.js';
+import { chatApi, conversationsApi, establishFlaskSession, sendMessage, getMessages, createConversation } from '../api.js';
+import { useConversations } from './ConversationsProvider.jsx';
 
 const MessagesContext = createContext();
 
@@ -11,6 +12,7 @@ export function MessagesProvider({ selectedId, children }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { updateConversation } = useConversations();
 
   useEffect(() => {
     if (!selectedId) {
@@ -22,23 +24,15 @@ export function MessagesProvider({ selectedId, children }) {
       setLoading(true);
       setError(null);
       try {
-        const conversationMessages = await chatApi.fetchMessages(selectedId);
+        // Load messages from the real backend
+        const response = await getMessages(selectedId);
+        const conversationMessages = response.messages || response || [];
         setMessages(conversationMessages);
       } catch (err) {
         console.error('Failed to fetch messages:', err);
         setError(err.message);
-        // Fallback to demo data when API fails
-        const demoMessages = {
-          1: [
-            { id: 101, user: 'You', text: 'Hello! This is a demo conversation.' },
-            { id: 102, user: 'AI', text: 'Hi! I\'m a demo AI response. The real API is not connected yet.' },
-          ],
-          2: [
-            { id: 201, user: 'You', text: 'Show me project Q&A' },
-            { id: 202, user: 'AI', text: 'This is demo Q&A data. Connect to your Flask backend to see real data.' },
-          ],
-        };
-        setMessages(demoMessages[selectedId] || []);
+        // Keep empty array if API fails
+        setMessages([]);
       } finally {
         setLoading(false);
       }
@@ -49,10 +43,50 @@ export function MessagesProvider({ selectedId, children }) {
 
   // Allow adding a message to the current conversation
   const addMessage = async (text) => {
+    let conversationId = selectedId;
+    
+    // If no conversation is selected, create a new one first
+    if (!conversationId) {
+      console.log('No conversation selected, creating a new one...');
+      try {
+        const newConversation = await createConversation();
+        conversationId = newConversation.id || newConversation.conversation_id;
+        console.log('Created new conversation:', conversationId);
+        
+        // Update the conversations list
+        updateConversation(conversationId, newConversation);
+      } catch (error) {
+        console.error('Failed to create conversation:', error);
+        // Fall back to temp ID if conversation creation fails
+        conversationId = 'temp-' + Date.now();
+      }
+    }
+    
     try {
-      const newMessage = await chatApi.sendMessage(text);
-      setMessages((prev) => [...prev, newMessage]);
-      return newMessage;
+      // First, add the user message optimistically
+      const userMessage = {
+        id: Date.now(),
+        user: 'You',
+        text: text,
+        timestamp: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      
+      // Send message to the real backend
+      const response = await sendMessage(conversationId, text);
+      
+      // Add the AI response to the messages
+      if (response && response.response) {
+        const aiResponse = {
+          id: Date.now() + 1,
+          user: 'AI (gpt-4o)',
+          text: response.response,
+          timestamp: new Date().toISOString()
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      }
+      
+      return userMessage;
     } catch (err) {
       console.error('Failed to send message:', err);
       setError(err.message);
